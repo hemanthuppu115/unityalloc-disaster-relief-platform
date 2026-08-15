@@ -1,11 +1,14 @@
-# 🌿 SevaSetu — Smart Volunteer Coordination & Emergency Resource Allocation Platform
+# 🌿 UnityAlloc — Smart Volunteer Coordination & Resource Allocation Platform
 
+[![Vercel Production](https://img.shields.io/badge/Vercel-Live--Demo-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://unityalloc-disaster-relief-platform.vercel.app/)
 [![Spring Boot](https://img.shields.io/badge/Spring--Boot-3.4+-6DB33F?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Java](https://img.shields.io/badge/Java-21+-ED8B00?style=for-the-badge&logo=java&logoColor=white)](https://www.oracle.com/java/)
 [![MySQL](https://img.shields.io/badge/MySQL-8.0+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)](https://www.mysql.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-**SevaSetu** is an intelligent, full-stack disaster response and volunteer coordination platform. It bridges ground emergency reports with command decisions by digitizing physical paper surveys, tracking medical supply inventory in real-time, and using a 3-factor AI matching engine to dispatch frontline volunteers based on proximity, skills compatibility, and urgency.
+> 🚀 **Live Production Web Application:** **[https://unityalloc-disaster-relief-platform.vercel.app/](https://unityalloc-disaster-relief-platform.vercel.app/)**
+
+**UnityAlloc** is an intelligent, full-stack disaster response and volunteer coordination platform. It bridges ground emergency reports with command decisions by digitizing physical paper surveys, tracking medical supply inventory in real-time, and using a 3-factor AI matching engine to dispatch frontline volunteers based on proximity, skills compatibility, and urgency.
 
 ---
 
