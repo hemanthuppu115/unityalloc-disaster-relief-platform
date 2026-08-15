@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UnityAlloc — Data-Driven Volunteer Coordination & Smart Resource Allocation</title>
+  <meta name="description" content="A powerful platform that aggregates scattered paper surveys, field reports, and community needs to smart-match volunteers with urgent local relief operations.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Inter:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet GIS Map CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Custom Design System -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Application Header -->
+  <header class="app-header glass">
+    <!-- Header Top Row -->
+    <div class="header-top-row">
+      <div class="brand">
+        <div class="brand-icon">
+          <i class="fa-solid fa-hand-holding-heart"></i>
+        </div>
+        <div>
+          <div class="brand-title">UnityAlloc</div>
+          <div class="mono" style="font-size: 0.7rem; color: var(--accent-cyan); letter-spacing: 0.05em;">SMART FIELD DISPATCH</div>
+        </div>
+      </div>
+
+      <!-- User Account & Role Session Badge -->
+      <div class="user-badge" id="user-session-badge" onclick="openAuthModal()" title="Click to Switch Account / Sign In / Manage Role">
+        <i class="fa-solid fa-circle-user" style="color: var(--accent-cyan); font-size: 1.25rem;"></i>
+        <span id="user-name-display">NGO Lead Dispatcher (DISPATCHER)</span>
+        <i class="fa-solid fa-chevron-down" style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.2rem;"></i>
+      </div>
+
+      <!-- Header Action Utilities -->
+      <div class="header-actions">
+        <div class="glass" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.75rem; border-radius: var(--radius-full); font-size: 0.75rem; border: 1px solid var(--border-color);" title="Auto-Sync Active (Every 15s)">
+          <span class="pulse-dot"></span>
+          <span class="mono" style="color: var(--accent-emerald); font-weight: 600;">LIVE</span>
+        </div>
+
+        <button class="btn btn-outline" id="sync-now-btn" onclick="triggerManualSync()" title="Manual Refresh / Sync Now">
+          <i class="fa-solid fa-rotate" id="sync-icon"></i> Refresh
+        </button>
+
+        <button class="btn btn-outline" onclick="exportDispatchesCsv()" title="Export Dispatches CSV Report" data-roles="DISPATCHER,ADMIN">
+          <i class="fa-solid fa-file-csv" style="color: var(--accent-emerald);"></i> Export CSV
+        </button>
+
+        <button class="btn btn-outline" id="audio-toggle-btn" onclick="toggleAudioChimes()" title="Toggle Operational Audio Effects">
+          <i class="fa-solid fa-volume-high" style="color: var(--primary);" id="audio-icon"></i>
+        </button>
+
+        <button class="btn btn-outline" onclick="openModal('shortcuts-modal')" title="Keyboard Shortcuts (Alt+K / ?)">
+          <i class="fa-solid fa-keyboard" style="color: var(--accent-amber);"></i>
+        </button>
+
+        <button class="btn btn-outline" id="ai-chat-toggle-btn" onclick="toggleAiChat()" title="AI Copilot Assistant (Alt+C)">
+          <i class="fa-solid fa-robot" style="color: var(--accent-cyan);"></i> Copilot
+        </button>
+
+        <button class="btn btn-outline" id="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Dark / Light Theme">
+          <i class="fa-solid fa-sun" style="color: var(--accent-amber);"></i> <span>Light Mode</span>
+        </button>
+
+        <button class="btn btn-primary" onclick="openModal('report-need-modal')" title="Report Need (Alt+N)">
+          <i class="fa-solid fa-plus"></i> Report Need
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Navigation Tabs Row (Ensures all relief & feature buttons are 100% visible) -->
+    <nav class="nav-tabs">
+      <button class="nav-btn active" id="nav-btn-home" data-roles="DISPATCHER,ADMIN,VOLUNTEER" onclick="switchTab('landing-page')">
+        <i class="fa-solid fa-house" style="color: var(--accent-emerald);"></i> <strong>Home Overview</strong>
+      </button>
+      <button class="nav-btn" id="nav-btn-command" data-roles="DISPATCHER,ADMIN" onclick="switchTab('command-center')">
+        <i class="fa-solid fa-chart-line"></i> Command Center
+      </button>
+      <button class="nav-btn" id="nav-btn-portal" data-roles="VOLUNTEER" onclick="switchTab('volunteer-portal')">
+        <i class="fa-solid fa-user-shield" style="color: var(--accent-cyan);"></i> My Responder Portal
+      </button>
+      <button class="nav-btn" id="nav-btn-map" data-roles="DISPATCHER,ADMIN,VOLUNTEER" onclick="switchTab('gis-map')">
+        <i class="fa-solid fa-map-location-dot" style="color: var(--accent-rose); font-size: 1.05rem;"></i> <strong>GIS Relief Map</strong>
+      </button>
+      <button class="nav-btn" id="nav-btn-inventory" data-roles="DISPATCHER,ADMIN" onclick="switchTab('relief-inventory')">
+        <i class="fa-solid fa-boxes-stacked" style="color: var(--accent-amber); font-size: 1.05rem;"></i> <strong>Relief Stock Depot</strong>
+      </button>
+      <button class="nav-btn" id="nav-btn-match" data-roles="DISPATCHER,ADMIN" onclick="switchTab('smart-match')">
+        <i class="fa-solid fa-brain" style="color: var(--primary);"></i> AI Smart Match
+      </button>
+      <button class="nav-btn" id="nav-btn-volunteers" data-roles="DISPATCHER,ADMIN" onclick="switchTab('volunteer-hub')">
+        <i class="fa-solid fa-users" style="color: var(--accent-emerald);"></i> Volunteer Roster
+      </button>
+      <button class="nav-btn" id="nav-btn-dispatches" data-roles="DISPATCHER,ADMIN" onclick="switchTab('active-tasks')">
+        <i class="fa-solid fa-list-check" style="color: var(--accent-cyan);"></i> Field Dispatches
+      </button>
+      <button class="nav-btn" id="nav-btn-surveys" data-roles="DISPATCHER,ADMIN,VOLUNTEER" onclick="switchTab('paper-surveys')">
+        <i class="fa-solid fa-file-invoice"></i> Survey Ingestion
+      </button>
+      <button class="nav-btn" id="nav-btn-analytics" data-roles="DISPATCHER,ADMIN" onclick="switchTab('analytics')">
+        <i class="fa-solid fa-chart-pie" style="color: var(--accent-amber);"></i> Operations Analytics
+      </button>
+    </nav>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-container">    <!-- VIEW 0: PUBLIC LANDING & FEATURE OVERVIEW PAGE -->
+    <section id="landing-page" class="view-section active">
+      
+      <!-- Hero Section -->
+      <div class="landing-hero glass" id="landing-hero">
+        <div class="hero-content">
+          <div class="hero-badge mono">
+            <span class="pulse-dot"></span> SMART FIELD DISPATCH & VOLUNTEER PLATFORM
+          </div>
+          <h1 class="hero-title">
+            Connect. Volunteer. <br><span class="gradient-text">Create Impact.</span>
+          </h1>
+          <p class="hero-subtitle">
+            SevaSetu is a smart platform that connects volunteers with communities and NGOs to solve real-world problems together.
+          </p>
+          
+          <div class="hero-cta-group">
+            <button class="btn btn-primary btn-lg" onclick="enterDashboard('VOLUNTEER')">
+              <i class="fa-solid fa-user-plus"></i> I Want to Volunteer <i class="fa-solid fa-arrow-right"></i>
+            </button>
+            <button class="btn btn-outline btn-lg" onclick="openModal('report-need-modal')">
+              <i class="fa-solid fa-hand-holding-heart" style="color: var(--accent-emerald);"></i> I Need Help
+            </button>
+          </div>
+
+          <!-- Live Impact Counters Bar -->
+          <div class="hero-stats-bar glass">
+            <div class="hero-stat-item">
+              <div class="hero-stat-icon" style="color: var(--accent-emerald);"><i class="fa-solid fa-user-group"></i></div>
+              <div>
+                <div class="hero-stat-val">12,500+</div>
+                <div class="hero-stat-lbl">Active Volunteers</div>
+              </div>
+            </div>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat-item">
+              <div class="hero-stat-icon" style="color: var(--primary);"><i class="fa-solid fa-circle-check"></i></div>
+              <div>
+                <div class="hero-stat-val">3,200+</div>
+                <div class="hero-stat-lbl">Tasks Completed</div>
+              </div>
+            </div>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat-item">
+              <div class="hero-stat-icon" style="color: var(--accent-rose);"><i class="fa-solid fa-heart"></i></div>
+              <div>
+                <div class="hero-stat-val">850+</div>
+                <div class="hero-stat-lbl">Communities Helped</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hero Photo Banner Image Card -->
+        <div class="hero-graphic-card glass" style="padding: 0.5rem; overflow: hidden;">
+          <img src="https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1000&auto=format&fit=crop&q=80" alt="Volunteers Creating Impact" style="width: 100%; height: 380px; object-fit: cover; border-radius: var(--radius-md);">
+          <div style="padding: 0.85rem; display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary);">
+            <div style="font-size: 0.85rem; font-weight: 700;"><i class="fa-solid fa-seedling" style="color: var(--accent-emerald);"></i> Community Tree Plantation Drive</div>
+            <span class="badge badge-emerald">ACTIVE TODAY</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: Why SevaSetu? (4 Feature Cards) -->
+      <div class="landing-section-header" id="why-sevasetu">
+        <h2>Why <span class="gradient-text">SevaSetu</span>?</h2>
+        <p>A unified platform bringing volunteers, NGOs, and communities together.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card glass" style="text-align: center;">
+          <div class="feature-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald); margin: 0 auto 1.25rem auto;">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <h3>Easy to Connect</h3>
+          <p>Connect with NGOs and communities looking for help in your local area.</p>
+        </div>
+
+        <div class="feature-card glass" style="text-align: center;">
+          <div class="feature-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--primary); margin: 0 auto 1.25rem auto;">
+            <i class="fa-solid fa-clipboard-list"></i>
+          </div>
+          <h3>Meaningful Tasks</h3>
+          <p>Find tasks that match your skills, interests, and schedule availability.</p>
+        </div>
+
+        <div class="feature-card glass" style="text-align: center;">
+          <div class="feature-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber); margin: 0 auto 1.25rem auto;">
+            <i class="fa-solid fa-location-dot"></i>
+          </div>
+          <h3>Local Impact</h3>
+          <p>Work on local issues and create a real impact right in your community.</p>
+        </div>
+
+        <div class="feature-card glass" style="text-align: center;">
+          <div class="feature-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan); margin: 0 auto 1.25rem auto;">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <h3>Track Your Impact</h3>
+          <p>Track your contributions, active dispatches, and see the change you're making.</p>
+        </div>
+      </div>
+
+      <!-- Section 3: How It Works (4-Step Process with Connectors) -->
+      <div class="landing-section-header" id="how-it-works" style="margin-top: 4rem;">
+        <h2>How It Works</h2>
+        <p>Get started and create meaningful change in 4 simple steps.</p>
+      </div>
+
+      <div class="how-it-works-grid">
+        <div class="step-card glass">
+          <div class="step-badge">1</div>
+          <div class="step-icon"><i class="fa-solid fa-user-plus" style="color: var(--accent-emerald);"></i></div>
+          <h4>1. Create Account</h4>
+          <p>Sign up as a volunteer or community organizer in just a few steps.</p>
+        </div>
+
+        <div class="step-card glass">
+          <div class="step-badge">2</div>
+          <div class="step-icon"><i class="fa-solid fa-magnifying-glass" style="color: var(--primary);"></i></div>
+          <h4>2. Find Opportunities</h4>
+          <p>Browse tasks and emergency causes that interest you nearby.</p>
+        </div>
+
+        <div class="step-card glass">
+          <div class="step-badge">3</div>
+          <div class="step-icon"><i class="fa-solid fa-paper-plane" style="color: var(--accent-cyan);"></i></div>
+          <h4>3. Apply & Connect</h4>
+          <p>Apply for tasks and get connected instantly with campaign organizers.</p>
+        </div>
+
+        <div class="step-card glass">
+          <div class="step-badge">4</div>
+          <div class="step-icon"><i class="fa-solid fa-circle-check" style="color: var(--accent-emerald);"></i></div>
+          <h4>4. Make an Impact</h4>
+          <p>Contribute your time and skills to create positive change.</p>
+        </div>
+      </div>
+
+      <!-- Section 4: Powerful Dashboard -->
+      <!-- Section 3.5: Interactive AI Skill Match & Impact Simulator Widget -->
+      <div class="landing-section-header" id="simulator-section" style="margin-top: 4rem;">
+        <h2>Interactive <span class="gradient-text">AI Match Simulator</span></h2>
+        <p>Select your skills and distance to calculate your instant volunteer compatibility fit score.</p>
+      </div>
+
+      <div class="simulator-card glass" style="padding: 2.5rem; border-radius: var(--radius-lg); background: var(--bg-card); border: 1.5px solid var(--accent-emerald); margin-bottom: 4rem; box-shadow: 0 15px 35px rgba(16, 185, 129, 0.15);">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: center;">
+          
+          <!-- Simulator Inputs -->
+          <div>
+            <h3 style="font-size: 1.35rem; font-weight: 800; margin-bottom: 1.25rem;"><i class="fa-solid fa-sliders" style="color: var(--accent-emerald);"></i> Configure Volunteer Profile</h3>
+            
+            <div style="margin-bottom: 1.25rem;">
+              <label style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted); display: block; margin-bottom: 0.4rem;">Select Primary Skill Set:</label>
+              <select id="sim-skill-select" class="form-control" onchange="updateLandingSimulator()" style="padding: 0.75rem; border-radius: var(--radius-md); font-weight: 600;">
+                <option value="Medical & Trauma Aid">🩺 Medical & Trauma Aid (High Need)</option>
+                <option value="Food & Supply Logistics">📦 Food Rations & Clean Water Logistics</option>
+                <option value="Rescue & Evacuation">🚤 Flood Rescue & Evacuation</option>
+                <option value="Paper Survey OCR Ingestion">📄 Paper Survey OCR & Need Recon</option>
+              </select>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                <label style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted);">Max Travel Distance Radius:</label>
+                <span class="mono" id="sim-dist-val" style="font-weight: 800; color: var(--accent-cyan);">5 km</span>
+              </div>
+              <input type="range" id="sim-dist-slider" min="1" max="30" value="5" oninput="updateLandingSimulator()" style="width: 100%; accent-color: var(--accent-emerald);">
+            </div>
+
+            <div style="display: flex; gap: 0.75rem;">
+              <button class="btn btn-primary" onclick="enterDashboard('VOLUNTEER')">
+                <i class="fa-solid fa-bolt"></i> Claim Match & Enter Portal →
+              </button>
+            </div>
+          </div>
+
+          <!-- Simulator Live Output Panel -->
+          <div class="glass" style="padding: 1.75rem; border-radius: var(--radius-md); background: var(--bg-secondary); border: 1px solid var(--border-color);">
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.75rem; display: flex; justify-content: space-between;">
+              <span>CALCULATED AI COMPATIBILITY FIT</span>
+              <span class="pulse-dot"></span>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 1.5rem; margin-bottom: 1.25rem;">
+              <div style="width: 80px; height: 80px; border-radius: 50%; border: 4px solid var(--accent-emerald); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);">
+                <span id="sim-match-score" style="font-size: 1.6rem; font-weight: 800; color: var(--accent-emerald);">98%</span>
+              </div>
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-muted);">Est. Response Dispatch</div>
+                <div id="sim-response-time" style="font-size: 1.35rem; font-weight: 800; color: var(--text-main);">12 mins</div>
+                <div style="font-size: 0.75rem; color: var(--accent-emerald); font-weight: 600;">Optimal Distance & Skill Rank #1</div>
+              </div>
+            </div>
+
+            <div class="glass" style="padding: 0.85rem; border-radius: var(--radius-sm); border-left: 3px solid var(--accent-emerald);">
+              <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700;">MATCHED EMERGENCY DISPATCH:</div>
+              <div id="sim-task-title" style="font-size: 0.9rem; font-weight: 700; margin-top: 0.2rem;">AIIMS Trauma Relief Center — Emergency Medical Dispatch</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Section 4: Powerful Dashboard (With Live Interactive View Switcher) -->
+      <div class="dashboard-preview-card glass" id="dashboard-preview" style="margin-top: 4rem;">
+        <!-- Left: Dashboard Graphic Preview -->
+        <div class="dashboard-preview-graphic glass">
+          <!-- Interactive Demo Header Switcher -->
+          <div style="padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); flex-wrap: wrap; gap: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fa-solid fa-gauge-high" style="color: var(--accent-emerald);"></i>
+              <span class="mono" style="font-size: 0.85rem; font-weight: 700;">Interactive Demo Preview</span>
+            </div>
+            
+            <div style="display: flex; gap: 0.4rem;">
+              <button class="btn btn-sm btn-primary" id="demo-tab-volunteer" onclick="switchLandingDemoTab('volunteer')">
+                <i class="fa-solid fa-user"></i> Volunteer View
+              </button>
+              <button class="btn btn-sm btn-outline" id="demo-tab-dispatcher" onclick="switchLandingDemoTab('dispatcher')">
+                <i class="fa-solid fa-user-gear"></i> Dispatcher View
+              </button>
+            </div>
+          </div>
+          
+          <div id="demo-mockup-container">
+            <div style="padding: 1.25rem;">
+              <!-- Stats Row -->
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1.25rem;">
+                <div class="glass" style="padding: 0.75rem; border-radius: var(--radius-sm); text-align: center;">
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Total Tasks</div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: var(--text-main);">42</div>
+                </div>
+                <div class="glass" style="padding: 0.75rem; border-radius: var(--radius-sm); text-align: center;">
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">In Progress</div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent-amber);">8</div>
+                </div>
+                <div class="glass" style="padding: 0.75rem; border-radius: var(--radius-sm); text-align: center;">
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Completed</div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent-emerald);">34</div>
+                </div>
+                <div class="glass" style="padding: 0.75rem; border-radius: var(--radius-sm); text-align: center;">
+                  <div style="font-size: 0.7rem; color: var(--text-muted);">Hours Contributed</div>
+                  <div style="font-size: 1.25rem; font-weight: 800; color: var(--accent-cyan);">120</div>
+                </div>
+              </div>
+
+              <!-- Opportunities Mockup Cards -->
+              <div style="font-size: 0.8rem; font-weight: 700; margin-bottom: 0.6rem; color: var(--text-muted);">My Active Dispatches</div>
+              
+              <div class="glass" style="padding: 0.75rem; border-radius: var(--radius-sm); margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-size: 0.85rem; font-weight: 700;"><i class="fa-solid fa-truck-medical" style="color: var(--accent-emerald);"></i> AIIMS Trauma Relief Shelter</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Status: <strong style="color: var(--accent-cyan);">EN_ROUTE 🚚</strong> &bull; ETA 12 Mins</div>
+                </div>
+                <span class="badge badge-emerald">STEP 2 OF 4</span>
+              </div>
+
+              <div class="glass" style="padding: 0.75rem; border-radius: var(--radius-sm); display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <div style="font-size: 0.85rem; font-weight: 700;"><i class="fa-solid fa-hand-holding-droplet" style="color: var(--primary);"></i> Yamuna Bank Water Distribution</div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Status: <strong style="color: var(--accent-emerald);">ACCEPTED ✅</strong></div>
+                </div>
+                <span class="badge badge-high">ASSIGNED</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Text & Checklist -->
+        <div class="dashboard-preview-text">
+          <h2 style="font-size: 2.15rem; font-weight: 800; margin-bottom: 0.75rem;">Powerful Dashboard</h2>
+          <p style="color: var(--text-muted); font-size: 1.05rem; margin-bottom: 1.5rem; line-height: 1.6;">
+            Manage your tasks, track your impact, communicate with organizers and stay updated — all in one place.
+          </p>
+
+          <ul class="dashboard-feature-list">
+            <li><i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); font-size: 1.1rem;"></i> <strong>Real-time notifications:</strong> Instant task alerts & audio chimes</li>
+            <li><i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); font-size: 1.1rem;"></i> <strong>Task management:</strong> Live status steppers (ACCEPTED ➔ EN_ROUTE ➔ ON_SITE ➔ COMPLETED)</li>
+            <li><i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); font-size: 1.1rem;"></i> <strong>Impact tracking:</strong> Total tasks completed, hours contributed & community score</li>
+            <li><i class="fa-solid fa-circle-check" style="color: var(--accent-emerald); font-size: 1.1rem;"></i> <strong>Easy communication:</strong> Direct AI copilot support & real-time activity stream</li>
+          </ul>
+
+          <div style="margin-top: 2rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+            <button class="btn btn-primary btn-lg" onclick="enterDashboard('VOLUNTEER')">
+              Explore Demo <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4.5: Volunteer & Community Stories Carousel -->
+      <div class="landing-section-header" style="margin-top: 4rem;">
+        <h2>Impact <span class="gradient-text">Stories</span></h2>
+        <p>Hear from real frontline responders, volunteers, and disaster response coordinators.</p>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.75rem; margin-bottom: 4rem;">
+        <div class="glass" style="padding: 1.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+          <div style="color: var(--accent-amber); font-size: 0.9rem; margin-bottom: 0.85rem;">
+            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.925rem; line-height: 1.6; margin-bottom: 1.25rem; font-style: italic;">
+            "SevaSetu matched me with AIIMS Trauma Relief Shelter in 3 minutes based on my medical background. The status stepper made coordination seamless!"
+          </p>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--accent-emerald); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800;">P</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.9rem;">Priya Sharma</div>
+              <div style="font-size: 0.75rem; color: var(--accent-emerald);">Trauma First Aid Volunteer</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass" style="padding: 1.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+          <div style="color: var(--accent-amber); font-size: 0.9rem; margin-bottom: 0.85rem;">
+            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.925rem; line-height: 1.6; margin-bottom: 1.25rem; font-style: italic;">
+            "Paper survey OCR ingestion saved our NGO team 4 hours of manual data entry during flood recon. It instantly generated structured digital emergency requests!"
+          </p>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800;">R</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.9rem;">Dr. Rajesh Verma</div>
+              <div style="font-size: 0.75rem; color: var(--accent-cyan);">NGO Command Dispatch Lead</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass" style="padding: 1.75rem; border-radius: var(--radius-lg); border: 1px solid var(--border-color);">
+          <div style="color: var(--accent-amber); font-size: 0.9rem; margin-bottom: 0.85rem;">
+            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+          </div>
+          <p style="color: var(--text-muted); font-size: 0.925rem; line-height: 1.6; margin-bottom: 1.25rem; font-style: italic;">
+            "The GIS relief map and real-time inventory alerts ensure our field logistics teams never run out of critical medical supplies during operations."
+          </p>
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <div style="width: 42px; height: 42px; border-radius: 50%; background: var(--accent-rose); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800;">A</div>
+            <div>
+              <div style="font-weight: 700; font-size: 0.9rem;">Ananya Deshmukh</div>
+              <div style="font-size: 0.75rem; color: var(--accent-amber);">Relief Depot Inventory Manager</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 5: Be the Change. Start Today! Footer Banner -->
+      <div class="callout-banner glass">
+        <div>
+          <h2 style="font-size: 2.25rem; font-weight: 800;">Be the Change. Start Today!</h2>
+          <p style="color: var(--text-muted); font-size: 1.05rem; margin-top: 0.4rem;">
+            Join thousands of volunteers who are making a difference every day.
+          </p>
+        </div>
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <button class="btn btn-primary btn-lg" onclick="enterDashboard('VOLUNTEER')">
+            Get Started <i class="fa-solid fa-arrow-right"></i>
+          </button>
+          <button class="btn btn-outline btn-lg" onclick="switchTab('gis-map')">
+            <i class="fa-solid fa-play"></i> Watch Video / Live Map
+          </button>
+        </div>
+      </div>
+
+      <!-- Landing Page Footer -->
+      <footer class="landing-footer">
+        <div class="brand" style="margin-bottom: 1rem; justify-content: center;">
+          <div class="brand-icon" style="background: var(--accent-emerald);"><i class="fa-solid fa-hand-holding-heart"></i></div>
+          <div>
+            <div class="brand-title">SevaSetu</div>
+            <div class="mono" style="font-size: 0.7rem; color: var(--accent-emerald);">VOLUNTEER COORDINATION</div>
+          </div>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.25rem;">
+          © 2026 SevaSetu. All rights reserved. Connecting volunteers with communities & creating real impact.
+        </p>
+        <div style="display: flex; gap: 1.5rem; justify-content: center; font-size: 0.85rem; color: var(--text-muted); flex-wrap: wrap; margin-bottom: 1.25rem;">
+          <a href="#" onclick="openModal('shortcuts-modal')" style="color: var(--text-muted); text-decoration: none;">Privacy Policy</a> &bull;
+          <a href="#" onclick="openModal('shortcuts-modal')" style="color: var(--text-muted); text-decoration: none;">Terms & Conditions</a> &bull;
+          <a href="#" onclick="toggleAiChat()" style="color: var(--accent-emerald); text-decoration: none;">Help</a> &bull;
+          <a href="#" onclick="openModal('report-need-modal')" style="color: var(--text-muted); text-decoration: none;">Contact Us</a>
+        </div>
+        <div style="display: flex; gap: 1rem; justify-content: center; font-size: 1.25rem; color: var(--text-muted);">
+          <a href="#" style="color: var(--text-muted);"><i class="fa-brands fa-facebook"></i></a>
+          <a href="#" style="color: var(--text-muted);"><i class="fa-brands fa-twitter"></i></a>
+          <a href="#" style="color: var(--text-muted);"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" style="color: var(--text-muted);"><i class="fa-brands fa-linkedin"></i></a>
+        </div>
+      </footer>
+
+    </section>
+
+    <!-- VIEW 1: COMMAND CENTER (Emergency Needs Dashboard) -->
+    <section id="command-center" class="view-section">
+      
+      <!-- Stats Overview Grid -->
+      <div class="stats-grid">
+        <div class="stat-card glass" onclick="filterNeedsFromStat('CRITICAL')" title="Click to view & filter Critical Needs">
+          <div class="stat-icon" style="background: rgba(244, 63, 94, 0.15); color: var(--accent-rose);">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <div class="stat-val" id="stat-critical-needs">0</div>
+            <div class="stat-lbl">Critical Needs <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; opacity: 0.7;"></i></div>
+          </div>
+        </div>
+
+        <div class="stat-card glass" onclick="filterNeedsFromStat('UNASSIGNED')" title="Click to view & filter Unassigned Needs">
+          <div class="stat-icon" style="background: rgba(99, 102, 241, 0.15); color: var(--primary);">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+          <div>
+            <div class="stat-val" id="stat-unassigned-needs">0</div>
+            <div class="stat-lbl">Unassigned Needs <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; opacity: 0.7;"></i></div>
+          </div>
+        </div>
+
+        <div class="stat-card glass" onclick="switchTab('volunteer-hub')" title="Click to open Volunteer Hub">
+          <div class="stat-icon" style="background: rgba(16, 185, 129, 0.15); color: var(--accent-emerald);">
+            <i class="fa-solid fa-user-check"></i>
+          </div>
+          <div>
+            <div class="stat-val" id="stat-active-volunteers">0</div>
+            <div class="stat-lbl">Active Responders <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; opacity: 0.7;"></i></div>
+          </div>
+        </div>
+
+        <div class="stat-card glass" onclick="switchTab('active-tasks')" title="Click to view Active Dispatches">
+          <div class="stat-icon" style="background: rgba(6, 182, 212, 0.15); color: var(--accent-cyan);">
+            <i class="fa-solid fa-truck-fast"></i>
+          </div>
+          <div>
+            <div class="stat-val" id="stat-active-dispatches">0</div>
+            <div class="stat-lbl">Active Dispatches <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; opacity: 0.7;"></i></div>
+          </div>
+        </div>
+
+        <div class="stat-card glass" onclick="switchTab('relief-inventory')" title="Click to view Relief Inventory Stock">
+          <div class="stat-icon" style="background: rgba(245, 158, 11, 0.15); color: var(--accent-amber);">
+            <i class="fa-solid fa-boxes-stacked"></i>
+          </div>
+          <div>
+            <div class="stat-val" id="stat-inventory-items">0</div>
+            <div class="stat-lbl">Relief Supply Stock <i class="fa-solid fa-arrow-right-long" style="font-size: 0.7rem; opacity: 0.7;"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-Time Operations Activity Feed Widget -->
+      <div class="glass" style="padding: 1.25rem; border-radius: var(--radius-lg); margin-bottom: 2rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 style="font-size: 1.05rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-bolt" style="color: var(--accent-amber);"></i> Real-Time Operations Activity Stream
+          </h3>
+          <button class="btn btn-outline" style="font-size: 0.75rem; padding: 0.3rem 0.65rem;" onclick="loadActivityLogs()">
+            <i class="fa-solid fa-rotate"></i> Refresh Feed
+          </button>
+        </div>
+        <div id="activity-feed-container" style="max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+          <!-- Loaded dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- Filter Controls Bar -->
+      <div class="filter-bar">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="needs-search-input" placeholder="Search community needs by area, category, or title..." oninput="handleNeedsSearch()">
+        </div>
+
+        <div class="filter-tags">
+          <button class="chip active" data-filter="ALL" onclick="filterNeeds('ALL', this)">All Needs</button>
+          <button class="chip" data-filter="CRITICAL" onclick="filterNeeds('CRITICAL', this)">Critical</button>
+          <button class="chip" data-filter="UNASSIGNED" onclick="filterNeeds('UNASSIGNED', this)">Unassigned</button>
+          <button class="chip" data-filter="Medical" onclick="filterNeeds('Medical', this)">Medical</button>
+          <button class="chip" data-filter="Food & Water" onclick="filterNeeds('Food & Water', this)">Food & Water</button>
+          <button class="chip" data-filter="Shelter" onclick="filterNeeds('Shelter', this)">Shelter</button>
+        </div>
+      </div>
+
+      <!-- Community Emergency Needs Grid -->
+      <div class="cards-grid" id="needs-cards-container">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </section>
+
+    <!-- VIEW 2: PAPER SURVEY OCR INGESTION -->
+    <section id="paper-surveys" class="view-section">
+      <div class="filter-bar">
+        <div>
+          <h2><i class="fa-solid fa-file-invoice" style="color: var(--accent-cyan);"></i> Paper Survey Ingestion Queue</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Convert scattered physical field surveys and NGO reports into structured digital community needs.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('scan-survey-modal')">
+          <i class="fa-solid fa-qrcode"></i> + Scan Paper Survey
+        </button>
+      </div>
+
+      <div class="table-responsive glass">
+        <table>
+          <thead>
+            <tr>
+              <th>Survey ID</th>
+              <th>Field Location</th>
+              <th>Extracted Description</th>
+              <th>Urgency Score</th>
+              <th>Verification Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="surveys-table-body">
+            <!-- Rendered dynamically by app.js -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VIEW 3: SMART MATCHING ENGINE -->
+    <section id="smart-match" class="view-section">
+      <div class="filter-bar">
+        <div>
+          <h2><i class="fa-solid fa-brain" style="color: var(--primary);"></i> Smart Allocation & Match Engine</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Multi-factor scoring algorithm evaluating proximity (40%), skills (40%), and urgency (20%).</p>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; margin-top: 1rem;">
+        <!-- Control Panel -->
+        <div class="glass" style="padding: 1.5rem; border-radius: var(--radius-lg);">
+          <h3 style="margin-bottom: 1rem;">Target Need</h3>
+          
+          <div class="form-group">
+            <label for="match-need-select">Select Community Need</label>
+            <select id="match-need-select" class="form-control" onchange="runSmartMatching()">
+              <!-- Populated dynamically -->
+            </select>
+          </div>
+
+          <hr style="border: none; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+
+          <h4 style="margin-bottom: 0.75rem;">Weight Configuration</h4>
+          <div class="form-group">
+            <label>Proximity Distance (40%)</label>
+            <input type="range" class="form-control" value="40" min="10" max="80" disabled>
+          </div>
+          <div class="form-group">
+            <label>Skill Match Ratio (40%)</label>
+            <input type="range" class="form-control" value="40" min="10" max="80" disabled>
+          </div>
+          <div class="form-group">
+            <label>Need Urgency Score (20%)</label>
+            <input type="range" class="form-control" value="20" min="10" max="80" disabled>
+          </div>
+
+          <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="runSmartMatching()">
+            <i class="fa-solid fa-rotate"></i> Re-Calculate Matches
+          </button>
+        </div>
+
+        <!-- Ranked Candidates Output -->
+        <div class="glass" style="padding: 1.5rem; border-radius: var(--radius-lg);">
+          <h3 style="margin-bottom: 1rem;">Ranked Volunteer Responders</h3>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Rank & Volunteer</th>
+                  <th>Distance</th>
+                  <th>Skill Fit</th>
+                  <th>Match Score</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="matching-results-body">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 4: VOLUNTEER HUB -->
+    <section id="volunteer-hub" class="view-section">
+      <div class="filter-bar">
+        <div>
+          <h2><i class="fa-solid fa-users" style="color: var(--accent-emerald);"></i> Volunteer Field Roster</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Registered responders, skill specializations, and active dispatch assignments.</p>
+        </div>
+        <button class="btn btn-outline" onclick="openModal('add-volunteer-modal')">
+          <i class="fa-solid fa-user-plus"></i> + Register Volunteer
+        </button>
+      </div>
+
+      <div class="cards-grid" id="volunteers-grid-container">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- VIEW 5: RELIEF INVENTORY STOCK -->
+    <section id="relief-inventory" class="view-section">
+      <div class="filter-bar">
+        <div>
+          <h2><i class="fa-solid fa-boxes-stacked" style="color: var(--accent-amber);"></i> Relief Supplies Stock Depot</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Track medical supplies, oxygen cylinders, food rations, and blood units.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openModal('add-inventory-modal')">
+          <i class="fa-solid fa-plus"></i> + Add Supply Item
+        </button>
+      </div>
+
+      <div class="table-responsive glass">
+        <table>
+          <thead>
+            <tr>
+              <th>Supply Item Name</th>
+              <th>Category</th>
+              <th>Available Stock</th>
+              <th>Min Threshold</th>
+              <th>Depot Location</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-table-body">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VIEW 6: ACTIVE TASK DISPATCHES -->
+    <section id="active-tasks" class="view-section">
+      <div class="filter-bar">
+        <div>
+          <h2><i class="fa-solid fa-list-check" style="color: var(--primary);"></i> Active Field Dispatches & Tasks</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Track live volunteer assignments, emergency location dispatch status, and mark tasks complete.</p>
+        </div>
+      </div>
+
+      <div class="table-responsive glass">
+        <table>
+          <thead>
+            <tr>
+              <th>Dispatch ID</th>
+              <th>Community Need ID</th>
+              <th>Assigned Volunteer ID</th>
+              <th>Match Fit Score</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="active-tasks-table-body">
+            <!-- Rendered dynamically -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VIEW 7: GIS RELIEF MAP VISUALIZER -->
+    <section id="gis-map" class="view-section">
+      <div class="filter-bar">
+        <div>
+          <h2><i class="fa-solid fa-map-location-dot" style="color: var(--accent-rose);"></i> Live Field GIS Relief Map</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Geographical tracking of critical community needs, responder positions, and depot locations.</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <span class="badge badge-critical"><i class="fa-solid fa-location-dot"></i> Needs</span>
+          <span class="badge badge-low"><i class="fa-solid fa-user"></i> Volunteers</span>
+          <span class="badge badge-high"><i class="fa-solid fa-warehouse"></i> Stock Depots</span>
+        </div>
+      </div>
+
+      <div class="glass" style="padding: 0.75rem; border-radius: var(--radius-lg);">
+        <div id="leaflet-map-container" style="height: 520px; border-radius: var(--radius-md); z-index: 10;"></div>
+      </div>
+    </section>
+
+    <!-- VIEW 8: OPERATIONAL ANALYTICS DASHBOARD -->
+    <section id="analytics" class="view-section">
+      <div class="filter-bar">
+        <div>
+          <h2><i class="fa-solid fa-chart-pie" style="color: var(--accent-amber);"></i> Operations Analytics & Intelligence</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Live operational metrics, urgency distributions, dispatch velocity, and supply health.</p>
+        </div>
+        <button class="btn btn-outline" onclick="exportInventoryCsv()">
+          <i class="fa-solid fa-file-csv" style="color: var(--accent-amber);"></i> Export Stock CSV
+        </button>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+        
+        <!-- Widget 1: Urgency Distribution -->
+        <div class="glass" style="padding: 1.5rem; border-radius: var(--radius-lg);">
+          <h3 style="margin-bottom: 1rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-pie-chart" style="color: var(--accent-rose);"></i> Emergency Needs Urgency Ratio
+          </h3>
+          <div id="urgency-analytics-widget" style="min-height: 180px;"></div>
+        </div>
+
+        <!-- Widget 2: Dispatch Velocity Status -->
+        <div class="glass" style="padding: 1.5rem; border-radius: var(--radius-lg);">
+          <h3 style="margin-bottom: 1rem; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-truck-ramp-box" style="color: var(--primary);"></i> Dispatch Lifecycle Progress
+          </h3>
+          <div id="dispatch-analytics-widget" style="min-height: 180px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 9: VOLUNTEER RESPONDER PORTAL -->
+    <section id="volunteer-portal" class="view-section">
+      <div class="filter-bar">
+        <div>
+          <h2><i class="fa-solid fa-user-shield" style="color: var(--accent-cyan);"></i> Field Responder Operational Portal</h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Personal dispatch dashboard for frontline volunteers to manage active dispatches and ground reports.</p>
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+          <button class="btn btn-outline" onclick="openModal('scan-survey-modal')">
+            <i class="fa-solid fa-qrcode" style="color: var(--accent-amber);"></i> Submit Field Survey
+          </button>
+          <button class="btn btn-primary" onclick="openModal('add-volunteer-modal')">
+            <i class="fa-solid fa-user-pen"></i> Responder Profile
+          </button>
+        </div>
+      </div>
+
+      <!-- Volunteer Assigned Tasks Banner Grid -->
+      <div style="margin-bottom: 2rem;">
+        <h3 style="margin-bottom: 1rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-paper-plane" style="color: var(--primary);"></i> My Active Field Dispatches & Tasks
+        </h3>
+        <div id="volunteer-assigned-tasks-container">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- Nearby Community Needs Grid -->
+      <div>
+        <h3 style="margin-bottom: 1rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-location-dot" style="color: var(--accent-rose);"></i> Nearby Emergency Field Operations
+        </h3>
+        <div id="volunteer-nearby-needs-container" class="cards-grid">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL 1: REPORT NEED MODAL -->
+  <div class="modal-backdrop" id="report-need-modal" onclick="handleBackdropClick(event, 'report-need-modal')">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-circle-plus" style="color: var(--primary);"></i> Report Emergency Community Need</h3>
+        <button class="close-btn" onclick="closeModal('report-need-modal')">&times;</button>
+      </div>
+      <form id="create-need-form" onsubmit="handleCreateNeed(event)">
+        <div class="form-group">
+          <label for="need-title">Title / Headline</label>
+          <input type="text" id="need-title" class="form-control" placeholder="e.g. AIIMS Trauma Unit - 20 Oxygen Cylinders" required>
+        </div>
+        <div class="form-group">
+          <label for="need-category">Category</label>
+          <select id="need-category" class="form-control" required>
+            <option value="Medical">Medical & First Aid</option>
+            <option value="Food & Water">Food & Drinking Water</option>
+            <option value="Shelter">Shelter & Blankets</option>
+            <option value="Logistics">Logistics & Debris Clearance</option>
+            <option value="Blood">Blood Donation Drive</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="need-urgency">Urgency Level</label>
+          <select id="need-urgency" class="form-control" required>
+            <option value="CRITICAL">Critical (Score 95+)</option>
+            <option value="HIGH">High (Score 80-94)</option>
+            <option value="MEDIUM">Medium (Score 60-79)</option>
+            <option value="LOW">Low (Score 1-59)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="need-address">Location Address</label>
+          <input type="text" id="need-address" class="form-control" placeholder="e.g. Ring Road, Sector 4, Delhi" required>
+        </div>
+        <div class="form-group">
+          <label for="need-description">Detailed Needs Description</label>
+          <textarea id="need-description" class="form-control" rows="3" placeholder="Specify exact quantities, contacts, and urgency notes..." required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-paper-plane"></i> Submit Emergency Request
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: SCAN PAPER SURVEY MODAL -->
+  <div class="modal-backdrop" id="scan-survey-modal" onclick="handleBackdropClick(event, 'scan-survey-modal')">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-qrcode" style="color: var(--accent-cyan);"></i> Ingest Paper Survey Scan</h3>
+        <button class="close-btn" onclick="closeModal('scan-survey-modal')">&times;</button>
+      </div>
+      <form id="create-survey-form" onsubmit="handleCreateSurvey(event)">
+        <div class="form-group">
+          <label for="surveyor-name">Surveyor / Field Agent Name</label>
+          <input type="text" id="surveyor-name" class="form-control" placeholder="e.g. Ground Recon Unit Alpha" required>
+        </div>
+        <div class="form-group">
+          <label for="survey-location">Location Sector</label>
+          <input type="text" id="survey-location" class="form-control" placeholder="e.g. Rohini Sector 7 Relief Camp" required>
+        </div>
+        <div class="form-group">
+          <label for="survey-notes">Field Survey Notes</label>
+          <textarea id="survey-notes" class="form-control" rows="3" placeholder="Raw physical survey text..." required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-scanner"></i> Process & Digitize Survey
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: REGISTER VOLUNTEER MODAL -->
+  <div class="modal-backdrop" id="add-volunteer-modal" onclick="handleBackdropClick(event, 'add-volunteer-modal')">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-user-plus" style="color: var(--accent-emerald);"></i> Register Field Volunteer</h3>
+        <button class="close-btn" onclick="closeModal('add-volunteer-modal')">&times;</button>
+      </div>
+      <form id="create-volunteer-form" onsubmit="handleCreateVolunteer(event)">
+        <div class="form-group">
+          <label for="vol-name">Full Name</label>
+          <input type="text" id="vol-name" class="form-control" placeholder="e.g. Ananya Sharma" required>
+        </div>
+        <div class="form-group">
+          <label for="vol-phone">Phone Contact</label>
+          <input type="text" id="vol-phone" class="form-control" placeholder="e.g. +91 98100 12345" required>
+        </div>
+        <div class="form-group">
+          <label for="vol-skills">Skills & Specializations</label>
+          <input type="text" id="vol-skills" class="form-control" placeholder="e.g. Emergency First Aid, Medical Dispatch" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-user-check"></i> Register Volunteer
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: ADD INVENTORY ITEM MODAL -->
+  <div class="modal-backdrop" id="add-inventory-modal" onclick="handleBackdropClick(event, 'add-inventory-modal')">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-boxes-stacked" style="color: var(--accent-amber);"></i> Add Relief Stock Item</h3>
+        <button class="close-btn" onclick="closeModal('add-inventory-modal')">&times;</button>
+      </div>
+      <form id="create-inventory-form" onsubmit="handleCreateInventory(event)">
+        <div class="form-group">
+          <label for="inv-name">Item Name</label>
+          <input type="text" id="inv-name" class="form-control" placeholder="e.g. Type-D Oxygen Cylinders" required>
+        </div>
+        <div class="form-group">
+          <label for="inv-category">Category</label>
+          <select id="inv-category" class="form-control" required>
+            <option value="Medical">Medical</option>
+            <option value="Food & Water">Food & Water</option>
+            <option value="Shelter">Shelter</option>
+            <option value="Blood">Blood</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="inv-quantity">Quantity Available</label>
+          <input type="number" id="inv-quantity" class="form-control" placeholder="e.g. 50" required>
+        </div>
+        <div class="form-group">
+          <label for="inv-unit">Unit (e.g. Cylinders, Packets, Cans)</label>
+          <input type="text" id="inv-unit" class="form-control" placeholder="e.g. Cylinders" required>
+        </div>
+        <div class="form-group">
+          <label for="inv-location">Depot Location</label>
+          <input type="text" id="inv-location" class="form-control" placeholder="e.g. AIIMS Central Depot" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-plus"></i> Add Item to Stock
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: EDIT NEED MODAL -->
+  <div class="modal-backdrop" id="edit-need-modal" onclick="handleBackdropClick(event, 'edit-need-modal')">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen-to-square" style="color: var(--primary);"></i> Edit Community Emergency Need</h3>
+        <button class="close-btn" onclick="closeModal('edit-need-modal')">&times;</button>
+      </div>
+      <form id="edit-need-form" onsubmit="handleUpdateNeed(event)">
+        <input type="hidden" id="edit-need-id">
+        <div class="form-group">
+          <label for="edit-need-title">Title / Headline</label>
+          <input type="text" id="edit-need-title" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-need-category">Category</label>
+          <select id="edit-need-category" class="form-control" required>
+            <option value="Medical">Medical & First Aid</option>
+            <option value="Food & Water">Food & Drinking Water</option>
+            <option value="Shelter">Shelter & Blankets</option>
+            <option value="Logistics">Logistics & Debris Clearance</option>
+            <option value="Blood">Blood Donation Drive</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-need-urgency">Urgency Level</label>
+          <select id="edit-need-urgency" class="form-control" required>
+            <option value="CRITICAL">Critical (Score 95+)</option>
+            <option value="HIGH">High (Score 80-94)</option>
+            <option value="MEDIUM">Medium (Score 60-79)</option>
+            <option value="LOW">Low (Score 1-59)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-need-address">Location Address</label>
+          <input type="text" id="edit-need-address" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-need-description">Detailed Description</label>
+          <textarea id="edit-need-description" class="form-control" rows="3" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-floppy-disk"></i> Save Changes
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 6: EDIT VOLUNTEER MODAL -->
+  <div class="modal-backdrop" id="edit-volunteer-modal" onclick="handleBackdropClick(event, 'edit-volunteer-modal')">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-user-pen" style="color: var(--accent-emerald);"></i> Edit Field Volunteer Profile</h3>
+        <button class="close-btn" onclick="closeModal('edit-volunteer-modal')">&times;</button>
+      </div>
+      <form id="edit-volunteer-form" onsubmit="handleUpdateVolunteer(event)">
+        <input type="hidden" id="edit-vol-id">
+        <div class="form-group">
+          <label for="edit-vol-name">Full Name</label>
+          <input type="text" id="edit-vol-name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-vol-phone">Phone Contact</label>
+          <input type="text" id="edit-vol-phone" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-vol-skills">Skills & Specializations</label>
+          <input type="text" id="edit-vol-skills" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-floppy-disk"></i> Update Profile
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 7: EDIT INVENTORY MODAL -->
+  <div class="modal-backdrop" id="edit-inventory-modal" onclick="handleBackdropClick(event, 'edit-inventory-modal')">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen-to-square" style="color: var(--accent-amber);"></i> Edit Relief Stock Item</h3>
+        <button class="close-btn" onclick="closeModal('edit-inventory-modal')">&times;</button>
+      </div>
+      <form id="edit-inventory-form" onsubmit="handleUpdateInventory(event)">
+        <input type="hidden" id="edit-inv-id">
+        <div class="form-group">
+          <label for="edit-inv-name">Item Name</label>
+          <input type="text" id="edit-inv-name" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-inv-category">Category</label>
+          <select id="edit-inv-category" class="form-control" required>
+            <option value="Medical">Medical</option>
+            <option value="Food & Water">Food & Water</option>
+            <option value="Shelter">Shelter</option>
+            <option value="Blood">Blood</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="edit-inv-quantity">Quantity Available</label>
+          <input type="number" id="edit-inv-quantity" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-inv-unit">Unit</label>
+          <input type="text" id="edit-inv-unit" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-inv-location">Depot Location</label>
+          <input type="text" id="edit-inv-location" class="form-control" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-floppy-disk"></i> Save Stock Item
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 8: AUTH / USER SIGN-IN & REGISTER MODAL -->
+  <div class="modal-backdrop" id="auth-modal" onclick="handleBackdropClick(event, 'auth-modal')">
+    <div class="modal-card glass">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-user-shield" style="color: var(--accent-cyan);"></i> UnityAlloc User Account</h3>
+        <button class="close-btn" onclick="closeModal('auth-modal')">&times;</button>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="auth-tab-btn active" id="auth-tab-signin" onclick="switchAuthTab('signin')">Sign In</button>
+        <button class="auth-tab-btn" id="auth-tab-signup" onclick="switchAuthTab('signup')">Register</button>
+      </div>
+
+      <!-- Sign In Form -->
+      <form id="signin-form" onsubmit="handleSignIn(event)">
+        <div class="form-group">
+          <label for="signin-email">Email Address</label>
+          <input type="email" id="signin-email" class="form-control" placeholder="admin@resq.org" required>
+        </div>
+        <div class="form-group">
+          <label for="signin-password">Password</label>
+          <input type="password" id="signin-password" class="form-control" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-right-to-bracket"></i> Sign In to Command
+        </button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="signup-form" onsubmit="handleSignUp(event)" style="display: none;">
+        <div class="form-group">
+          <label for="signup-name">Full Name</label>
+          <input type="text" id="signup-name" class="form-control" placeholder="e.g. Commander Sarah Chen" required>
+        </div>
+        <div class="form-group">
+          <label for="signup-email">Email Address</label>
+          <input type="email" id="signup-email" class="form-control" placeholder="sarah@resq.org" required>
+        </div>
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <input type="password" id="signup-password" class="form-control" placeholder="••••••••" required>
+        </div>
+        <div class="form-group">
+          <label for="signup-role">Role</label>
+          <select id="signup-role" class="form-control" required>
+            <option value="VOLUNTEER">Field Volunteer Responder</option>
+            <option value="DISPATCHER">Command Lead / Dispatcher</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">
+          <i class="fa-solid fa-user-plus"></i> Create Account
+        </button>
+      </form>
+
+      <!-- Quick Demo Account Switcher -->
+      <div style="margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border-color); text-align: center;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Quick Demo Account Switcher</div>
+        <div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">
+          <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="loginAsDemo('DISPATCHER')">
+            <i class="fa-solid fa-user-gear" style="color: var(--primary);"></i> Switch to Dispatcher HQ
+          </button>
+          <button type="button" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.45rem 0.85rem;" onclick="loginAsDemo('VOLUNTEER')">
+            <i class="fa-solid fa-hand-holding-heart" style="color: var(--accent-cyan);"></i> Switch to Field Volunteer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI COPILOT FLOATING DRAWER -->
+  <div class="glass ai-chat-drawer" id="ai-chat-drawer">
+    <div class="modal-header" style="padding: 1rem; border-bottom: 1px solid var(--border-color); margin-bottom: 0;">
+      <h4 style="display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fa-solid fa-robot" style="color: var(--accent-cyan);"></i> UnityAlloc AI Copilot
+      </h4>
+      <button class="close-btn" onclick="toggleAiChat()">&times;</button>
+    </div>
+    
+    <!-- Quick Prompt Chips -->
+    <div class="copilot-prompts-container">
+      <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Show critical emergency needs')">🚨 Critical Needs</button>
+      <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Find available medical volunteers')">🩺 Medical Responders</button>
+      <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Check food & water stock level')">💧 Water Stock</button>
+      <button type="button" class="prompt-chip" onclick="sendQuickPrompt('Summarize active dispatches')">📋 Active Dispatches</button>
+    </div>
+
+    <div class="chat-messages" id="chat-messages-container">
+      <div class="chat-bubble bot">
+        👋 Hi! I am UnityAlloc AI Copilot. Ask me about live emergency needs, volunteer rankings, or relief inventory!
+      </div>
+    </div>
+    <form class="chat-input-row" onsubmit="handleSendAiMessage(event)">
+      <button type="button" class="btn btn-outline" id="mic-btn" onclick="toggleSpeechRecognition()" title="Voice Dictation (Web Speech API)" style="padding: 0.5rem 0.75rem;">
+        <i class="fa-solid fa-microphone" id="mic-icon" style="color: var(--accent-rose);"></i>
+      </button>
+      <input type="text" id="ai-chat-input" class="form-control" placeholder="Ask AI Copilot or dictate voice input..." required>
+      <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem;">
+        <i class="fa-solid fa-paper-plane"></i>
+      </button>
+    </form>
+  </div>
+
+  <!-- MODAL 9: DISPATCH TIMELINE & LIFECYCLE STEPPER -->
+  <div class="modal-backdrop" id="timeline-modal" onclick="handleBackdropClick(event, 'timeline-modal')">
+    <div class="modal-card glass" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i> Dispatch Task Timeline & Operational Steps</h3>
+        <button class="close-btn" onclick="closeModal('timeline-modal')">&times;</button>
+      </div>
+      <div id="timeline-modal-content">
+        <!-- Rendered dynamically by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 10: DUPLICATE NEED WARNING MODAL -->
+  <div class="modal-backdrop" id="duplicate-warning-modal" onclick="handleBackdropClick(event, 'duplicate-warning-modal')">
+    <div class="modal-card glass" style="max-width: 520px; border: 1px solid var(--accent-amber);">
+      <div class="modal-header">
+        <h3 style="color: var(--accent-amber);"><i class="fa-solid fa-triangle-exclamation"></i> Potential Duplicate Emergency Report</h3>
+        <button class="close-btn" onclick="closeModal('duplicate-warning-modal')">&times;</button>
+      </div>
+      <div id="duplicate-warning-content" style="margin-bottom: 1.5rem; font-size: 0.95rem; line-height: 1.5;">
+        <!-- Rendered dynamically -->
+      </div>
+      <div style="display: flex; gap: 1rem;">
+        <button class="btn btn-outline" style="flex: 1;" onclick="closeModal('duplicate-warning-modal')">
+          Cancel Report
+        </button>
+        <button class="btn btn-primary" style="flex: 1;" onclick="confirmCreateNeedAnyway()">
+          Submit Request Anyway
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 11: KEYBOARD SHORTCUTS LEGEND MODAL -->
+  <div class="modal-backdrop" id="shortcuts-modal" onclick="handleBackdropClick(event, 'shortcuts-modal')">
+    <div class="modal-card glass" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-keyboard" style="color: var(--accent-amber);"></i> Keyboard Shortcuts Cheat Sheet</h3>
+        <button class="close-btn" onclick="closeModal('shortcuts-modal')">&times;</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.9rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+          <span>Report Emergency Need</span>
+          <div><kbd class="shortcut-kbd">Alt</kbd> + <kbd class="shortcut-kbd">N</kbd></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+          <span>Toggle AI Copilot</span>
+          <div><kbd class="shortcut-kbd">Alt</kbd> + <kbd class="shortcut-kbd">C</kbd></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+          <span>Ingest Paper Survey</span>
+          <div><kbd class="shortcut-kbd">Alt</kbd> + <kbd class="shortcut-kbd">S</kbd></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+          <span>Register Volunteer</span>
+          <div><kbd class="shortcut-kbd">Alt</kbd> + <kbd class="shortcut-kbd">V</kbd></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+          <span>Manual Sync / Refresh</span>
+          <div><kbd class="shortcut-kbd">Alt</kbd> + <kbd class="shortcut-kbd">R</kbd></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0;">
+          <span>Close Active Modal / Drawer</span>
+          <div><kbd class="shortcut-kbd">Esc</kbd></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Celebration Canvas Overlay -->
+  <canvas id="celebration-canvas"></canvas>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- JavaScript Controller -->
+  <script src="app.js"></script>
+</body>
+</html>
